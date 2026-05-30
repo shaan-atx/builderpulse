@@ -8,6 +8,12 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const secret = process.env.MANUAL_LOG_SECRET;
+  const auth   = request.headers.get('authorization');
+  if (!secret || auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await request.json() as Record<string, unknown>;

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { logSession } from './actions';
 
 export default function LogForm() {
   const router = useRouter();
@@ -17,13 +18,14 @@ export default function LogForm() {
     e.preventDefault();
     setStatus('saving');
 
-    const res = await fetch('/api/manual', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date, tokens_estimated: Number(tokens), source, note: note || undefined }),
+    const result = await logSession({
+      date,
+      tokens_estimated: Number(tokens),
+      source: source as 'claude.ai' | 'chatgpt' | 'other',
+      note: note || undefined,
     });
 
-    if (res.ok) {
+    if (result.ok) {
       setTokens('');
       setNote('');
       setStatus('done');
