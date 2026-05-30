@@ -110,10 +110,22 @@ export default async function Dashboard() {
       {/* Setup banner */}
       <SetupBanner />
 
-      {/* Widget preview */}
-      <div className="rounded-lg overflow-hidden border border-gray-800">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/widget.svg" alt="AI Activity Heatmap" className="w-full" />
+      {/* Heatmap widget */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Activity — last 52 weeks</h2>
+        <div className="rounded-lg overflow-hidden border border-gray-800">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/widget.svg" alt="AI Activity Heatmap" className="w-full" />
+        </div>
+      </div>
+
+      {/* Bar chart widget */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Daily usage — last 30 days</h2>
+        <div className="rounded-lg overflow-hidden border border-gray-800">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/barchart.svg" alt="30-day bar chart" className="w-full" />
+        </div>
       </div>
 
       {/* Streak */}
