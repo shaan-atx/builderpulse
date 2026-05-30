@@ -3,7 +3,8 @@ import { aggregateUsage } from '@/lib/aggregate';
 import { generateSVG } from '@/lib/svg';
 import type { ColorScheme, Theme, Source } from '@/lib/types';
 
-export const dynamic = 'force-dynamic';
+export const dynamic   = 'force-dynamic';
+export const revalidate = 3600;
 
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;

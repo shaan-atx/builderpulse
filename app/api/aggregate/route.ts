@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { aggregateUsage } from '@/lib/aggregate';
 
-export const dynamic = 'force-dynamic';
+export const dynamic   = 'force-dynamic';
+export const revalidate = 3600;
 
 export async function GET(request: NextRequest) {
   const days = Math.min(

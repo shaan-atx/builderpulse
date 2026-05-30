@@ -22,9 +22,15 @@ interface UsageResponse {
   next_page?: string | null;
 }
 
+export interface ModelUsage {
+  tokens: number;
+  cost: number;
+}
+
 export interface AnthropicUsageData {
   byDate: Record<string, number>;
   estimatedCost: number;
+  byModel: Record<string, ModelUsage>;
 }
 
 async function _fetchAnthropicUsage(
@@ -40,6 +46,7 @@ async function _fetchAnthropicUsage(
   };
 
   const byDate: Record<string, number> = {};
+  const byModel: Record<string, ModelUsage> = {};
   let estimatedCost = 0;
   let nextPage: string | undefined;
 
@@ -75,15 +82,18 @@ async function _fetchAnthropicUsage(
         const output    = r.output_tokens ?? 0;
         const tokens    = uncached + cached + creation + output;
 
+        const cost = calcAnthropicCost(r.model ?? '', uncached, cached, creation, output);
         byDate[date] = (byDate[date] ?? 0) + tokens;
-        estimatedCost += calcAnthropicCost(r.model ?? '', uncached, cached, creation, output);
+        estimatedCost += cost;
+        const model = r.model ?? 'unknown';
+        byModel[model] = { tokens: (byModel[model]?.tokens ?? 0) + tokens, cost: (byModel[model]?.cost ?? 0) + cost };
       }
     }
 
     nextPage = json.has_more && json.next_page ? json.next_page : undefined;
   } while (nextPage);
 
-  return { byDate, estimatedCost };
+  return { byDate, estimatedCost, byModel };
 }
 
 export function fetchAnthropicUsage(

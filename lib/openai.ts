@@ -20,9 +20,15 @@ interface UsageResponse {
   next_page?: string | null;
 }
 
+export interface ModelUsage {
+  tokens: number;
+  cost: number;
+}
+
 export interface OpenAIUsageData {
   byDate: Record<string, number>;
   estimatedCost: number;
+  byModel: Record<string, ModelUsage>;
 }
 
 async function _fetchOpenAIUsage(
@@ -37,6 +43,7 @@ async function _fetchOpenAIUsage(
   const endTs   = Math.floor(new Date(endDate + 'T23:59:59Z').getTime() / 1000);
 
   const byDate: Record<string, number> = {};
+  const byModel: Record<string, ModelUsage> = {};
   let estimatedCost = 0;
   let nextPage: string | undefined;
 
@@ -70,15 +77,18 @@ async function _fetchOpenAIUsage(
         const output = r.output_tokens ?? 0;
         const tokens = input + output;
 
+        const cost = calcOpenAICost(r.model ?? '', input, cached, output);
         byDate[date] = (byDate[date] ?? 0) + tokens;
-        estimatedCost += calcOpenAICost(r.model ?? '', input, cached, output);
+        estimatedCost += cost;
+        const model = r.model ?? 'unknown';
+        byModel[model] = { tokens: (byModel[model]?.tokens ?? 0) + tokens, cost: (byModel[model]?.cost ?? 0) + cost };
       }
     }
 
     nextPage = json.has_more && json.next_page ? json.next_page : undefined;
   } while (nextPage);
 
-  return { byDate, estimatedCost };
+  return { byDate, estimatedCost, byModel };
 }
 
 export function fetchOpenAIUsage(
