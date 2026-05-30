@@ -42,7 +42,7 @@ export async function fetchAnthropicUsage(
 
     let res: Response;
     try {
-      res = await fetch(url.toString(), { headers });
+      res = await fetch(url.toString(), { headers, next: { revalidate: 3600 } });
     } catch {
       break;
     }
