@@ -1,10 +1,15 @@
+interface UsageResult {
+  input_tokens?: number;
+  output_tokens?: number;
+  uncached_input_tokens?: number;
+  cached_input_tokens?: number;
+  cache_creation_input_tokens?: number;
+}
+
 interface UsageBucket {
-  timestamp: string;
-  model: string;
-  uncached_input_tokens: number;
-  cached_input_tokens: number;
-  cache_creation_input_tokens: number;
-  output_tokens: number;
+  starting_at: string;
+  ending_at: string;
+  results: UsageResult[];
 }
 
 interface UsageResponse {
@@ -30,8 +35,8 @@ export async function fetchAnthropicUsage(
 
   do {
     const url = new URL('https://api.anthropic.com/v1/organizations/usage_report/messages');
-    url.searchParams.set('starting_at', `${startDate}T00:00:00Z`);
-    url.searchParams.set('ending_at',   `${endDate}T23:59:59Z`);
+    url.searchParams.set('starting_at',  `${startDate}T00:00:00Z`);
+    url.searchParams.set('ending_at',    `${endDate}T23:59:59Z`);
     url.searchParams.set('bucket_width', '1d');
     if (nextPage) url.searchParams.set('page', nextPage);
 
@@ -51,12 +56,15 @@ export async function fetchAnthropicUsage(
     const json = await res.json() as UsageResponse;
 
     for (const bucket of json.data ?? []) {
-      const date = bucket.timestamp.split('T')[0];
-      const tokens =
-        (bucket.uncached_input_tokens       ?? 0) +
-        (bucket.cached_input_tokens         ?? 0) +
-        (bucket.cache_creation_input_tokens ?? 0) +
-        (bucket.output_tokens               ?? 0);
+      const date = bucket.starting_at.split('T')[0];
+      const tokens = (bucket.results ?? []).reduce((sum, r) =>
+        sum +
+        (r.input_tokens               ?? r.uncached_input_tokens ?? 0) +
+        (r.cached_input_tokens        ?? 0) +
+        (r.cache_creation_input_tokens ?? 0) +
+        (r.output_tokens              ?? 0),
+        0,
+      );
       result[date] = (result[date] ?? 0) + tokens;
     }
 
