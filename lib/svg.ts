@@ -42,13 +42,15 @@ const STEP   = CELL + GAP;
 const WEEKS  = 53;
 const DAYS   = 7;
 const MONTH_TOP     = 20;
+const PAD_LEFT      = 28;
 const PAD_RIGHT     = 40;
 const LEGEND_HEIGHT = 38;
 
-const W = WEEKS * STEP + PAD_RIGHT;
+const W = PAD_LEFT + WEEKS * STEP + PAD_RIGHT;
 const H = MONTH_TOP + DAYS * STEP + LEGEND_HEIGHT;
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const WEEKDAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 function lvl(tokens: number, max: number): number {
   if (tokens === 0 || max === 0) return 0;
@@ -107,6 +109,11 @@ export function generateSVG(
     weeks.push(week);
   }
 
+  // Weekday labels (Mon, Wed, Fri — indices 1, 3, 5)
+  const dayLabels = [1, 3, 5].map(d =>
+    `<text x="${PAD_LEFT - 4}" y="${MONTH_TOP + d * STEP + CELL - 1}" font-size="9" fill="${P.text}" font-family="system-ui,sans-serif" text-anchor="end">${WEEKDAYS[d]}</text>`
+  ).join('');
+
   // Month labels
   let lastMonth = -1;
   const monthSVG = weeks.map((week, w) => {
@@ -115,7 +122,7 @@ export function generateSVG(
     const m = new Date(first).getMonth();
     if (m === lastMonth) return '';
     lastMonth = m;
-    return `<text x="${w * STEP}" y="${MONTH_TOP - 5}" font-size="9" fill="${P.text}" font-family="system-ui,sans-serif">${MONTHS[m]}</text>`;
+    return `<text x="${PAD_LEFT + w * STEP}" y="${MONTH_TOP - 5}" font-size="9" fill="${P.text}" font-family="system-ui,sans-serif">${MONTHS[m]}</text>`;
   }).join('');
 
   // Cells + defs (clipPaths for mixed cells)
@@ -127,7 +134,7 @@ export function generateSVG(
       const date = weeks[w][d];
       if (!date) continue;
 
-      const x = w * STEP;
+      const x = PAD_LEFT + w * STEP;
       const y = MONTH_TOP + d * STEP;
 
       if (source !== 'all') {
@@ -190,6 +197,7 @@ export function generateSVG(
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <rect width="${W}" height="${H}" rx="6" fill="${P.bg}"/>
   ${defs.length ? `<defs>${defs.join('')}</defs>` : ''}
+  ${dayLabels}
   ${monthSVG}
   ${cells.join('\n  ')}
   ${legendItems}
