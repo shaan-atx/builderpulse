@@ -21,7 +21,7 @@ const STEP = CELL + GAP;
 const WEEKS = 53;
 const DAYS = 7;
 const MONTH_TOP = 20;
-const PAD_RIGHT = 10;
+const PAD_RIGHT = 40;
 const LEGEND_HEIGHT = 28;
 
 const W = WEEKS * STEP + PAD_RIGHT;
