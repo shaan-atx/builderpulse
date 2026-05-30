@@ -21,12 +21,13 @@ export default async function Dashboard() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 space-y-10">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">BuilderPulse</h1>
-          <p className="text-gray-400 text-sm mt-1">Your AI activity — last 365 days</p>
+          <p className="text-gray-300 text-sm mt-1">Your AI API activity graph — like GitHub contributions, but for tokens.</p>
+          <p className="text-gray-500 text-xs mt-1">Embed it in your README to show the world you build with AI every day.</p>
         </div>
-        <div className="text-xs text-gray-500 font-mono bg-[#161b22] border border-gray-700 rounded px-3 py-2">
+        <div className="text-xs text-gray-500 font-mono bg-[#161b22] border border-gray-700 rounded px-3 py-2 whitespace-nowrap shrink-0">
           /widget.svg
         </div>
       </div>
