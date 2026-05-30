@@ -1,6 +1,8 @@
 import { cached } from './cache';
+import { calcAnthropicCost } from './pricing';
 
 interface UsageResult {
+  model?: string;
   input_tokens?: number;
   output_tokens?: number;
   uncached_input_tokens?: number;
@@ -20,19 +22,25 @@ interface UsageResponse {
   next_page?: string | null;
 }
 
+export interface AnthropicUsageData {
+  byDate: Record<string, number>;
+  estimatedCost: number;
+}
+
 async function _fetchAnthropicUsage(
   startDate: string,
   endDate: string,
-): Promise<Record<string, number> | null> {
+): Promise<AnthropicUsageData | null> {
   const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return {};
+  if (!key) return { byDate: {}, estimatedCost: 0 };
 
   const headers = {
     'x-api-key': key,
     'anthropic-version': '2023-06-01',
   };
 
-  const result: Record<string, number> = {};
+  const byDate: Record<string, number> = {};
+  let estimatedCost = 0;
   let nextPage: string | undefined;
 
   do {
@@ -60,27 +68,28 @@ async function _fetchAnthropicUsage(
 
     for (const bucket of json.data ?? []) {
       const date = bucket.starting_at.split('T')[0];
-      const tokens = (bucket.results ?? []).reduce((sum, r) =>
-        sum +
-        (r.input_tokens               ?? r.uncached_input_tokens ?? 0) +
-        (r.cached_input_tokens        ?? 0) +
-        (r.cache_creation_input_tokens ?? 0) +
-        (r.output_tokens              ?? 0),
-        0,
-      );
-      result[date] = (result[date] ?? 0) + tokens;
+      for (const r of bucket.results ?? []) {
+        const uncached  = r.input_tokens ?? r.uncached_input_tokens ?? 0;
+        const cached    = r.cached_input_tokens ?? 0;
+        const creation  = r.cache_creation_input_tokens ?? 0;
+        const output    = r.output_tokens ?? 0;
+        const tokens    = uncached + cached + creation + output;
+
+        byDate[date] = (byDate[date] ?? 0) + tokens;
+        estimatedCost += calcAnthropicCost(r.model ?? '', uncached, cached, creation, output);
+      }
     }
 
     nextPage = json.has_more && json.next_page ? json.next_page : undefined;
   } while (nextPage);
 
-  return result;
+  return { byDate, estimatedCost };
 }
 
 export function fetchAnthropicUsage(
   startDate: string,
   endDate: string,
-): Promise<Record<string, number>> {
+): Promise<AnthropicUsageData | null> {
   return cached(`anthropic:${startDate}:${endDate}`, 60 * 60 * 1000, () =>
     _fetchAnthropicUsage(startDate, endDate),
   );

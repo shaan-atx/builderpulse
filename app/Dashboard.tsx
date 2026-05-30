@@ -1,16 +1,18 @@
 import { aggregateUsage } from '@/lib/aggregate';
 import { readSessions } from '@/lib/manual';
+import { fmtCost } from '@/lib/pricing';
 import LogForm from './LogForm';
 
 export default async function Dashboard() {
-  const data     = await aggregateUsage(365);
+  const result   = await aggregateUsage(365);
+  const { days } = result;
   const sessions = readSessions();
 
-  const totalTokens     = data.reduce((s, d) => s + d.total, 0);
-  const anthropicTokens = data.reduce((s, d) => s + d.anthropic, 0);
-  const openaiTokens    = data.reduce((s, d) => s + d.openai, 0);
-  const manualTokens    = data.reduce((s, d) => s + d.manual, 0);
-  const activeDays      = data.filter(d => d.total > 0).length;
+  const totalTokens     = days.reduce((s, d) => s + d.total, 0);
+  const anthropicTokens = days.reduce((s, d) => s + d.anthropic, 0);
+  const openaiTokens    = days.reduce((s, d) => s + d.openai, 0);
+  const manualTokens    = days.reduce((s, d) => s + d.manual, 0);
+  const activeDays      = days.filter(d => d.total > 0).length;
 
   function fmt(n: number) {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -39,16 +41,18 @@ export default async function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
-          { label: 'Total tokens', value: fmt(totalTokens), color: 'text-purple-400' },
-          { label: 'Active days',  value: activeDays.toString(), color: 'text-blue-400' },
-          { label: 'Anthropic',    value: fmt(anthropicTokens), color: 'text-orange-400' },
-          { label: 'OpenAI',       value: fmt(openaiTokens),    color: 'text-green-400' },
-        ].map(({ label, value, color }) => (
+          { label: 'Total tokens',  value: fmt(totalTokens),                     color: 'text-purple-400' },
+          { label: 'Active days',   value: activeDays.toString(),                 color: 'text-blue-400'   },
+          { label: 'Anthropic',     value: fmt(anthropicTokens),                  color: 'text-orange-400' },
+          { label: 'OpenAI',        value: fmt(openaiTokens),                     color: 'text-cyan-400'   },
+          { label: 'Est. spend',    value: fmtCost(result.estimatedCostTotal),    color: 'text-green-400'  },
+          { label: 'Anthropic $',   value: fmtCost(result.estimatedCostAnthropic) + ' / ' + fmtCost(result.estimatedCostOpenAI), color: 'text-gray-400', small: true },
+        ].map(({ label, value, color, small }) => (
           <div key={label} className="bg-[#161b22] border border-gray-800 rounded-lg p-4">
             <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
-            <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
+            <p className={`font-bold mt-1 ${color} ${small ? 'text-sm' : 'text-2xl'}`}>{value}</p>
           </div>
         ))}
       </div>
@@ -58,7 +62,7 @@ export default async function Dashboard() {
         <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Embed</h2>
         <div className="bg-[#161b22] border border-gray-800 rounded-lg p-4 font-mono text-xs text-gray-400 space-y-1">
           <p>![AI Activity](https://your-builderpulse.vercel.app/widget.svg)</p>
-          <p className="text-gray-600">![Anthropic only](https://your-builderpulse.vercel.app/widget.svg?source=anthropic&color=blue)</p>
+          <p className="text-gray-600">![Anthropic only](https://your-builderpulse.vercel.app/widget.svg?source=anthropic)</p>
           <p className="text-gray-600">![Light mode](https://your-builderpulse.vercel.app/widget.svg?theme=light&color=green)</p>
         </div>
       </div>

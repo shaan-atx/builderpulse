@@ -1,4 +1,5 @@
 import type { UsageDay, ColorScheme, Theme, Source } from './types';
+import { fmtCost } from './pricing';
 
 // Source-specific palettes (level 0 = empty cell background)
 const PALETTE = {
@@ -65,6 +66,7 @@ export function generateSVG(
   theme: Theme = 'dark',
   color: ColorScheme = 'purple',
   source: Source = 'all',
+  estimatedCost = 0,
 ): string {
   const P = PALETTE[theme];
 
@@ -194,6 +196,10 @@ export function generateSVG(
     ? buildAllLegend(P, ly, theme)
     : buildSingleLegend(singlePalette, ly, P.text);
 
+  const costSVG = estimatedCost > 0
+    ? `<text x="${W - PAD_RIGHT + 4}" y="${MONTH_TOP + DAYS * STEP + 10 + CELL - 1}" font-size="9" fill="${P.text}" font-family="system-ui,sans-serif" text-anchor="start">~${fmtCost(estimatedCost)}</text>`
+    : '';
+
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <rect width="${W}" height="${H}" rx="6" fill="${P.bg}"/>
   ${defs.length ? `<defs>${defs.join('')}</defs>` : ''}
@@ -201,6 +207,7 @@ export function generateSVG(
   ${monthSVG}
   ${cells.join('\n  ')}
   ${legendItems}
+  ${costSVG}
 </svg>`;
 }
 

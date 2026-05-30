@@ -8,6 +8,13 @@ export async function GET(request: NextRequest) {
     parseInt(request.nextUrl.searchParams.get('days') ?? '365', 10),
     365,
   );
-  const data = await aggregateUsage(days);
-  return NextResponse.json({ data });
+  const result = await aggregateUsage(days);
+  return NextResponse.json({
+    data: result.days,
+    estimatedCost: {
+      anthropic: result.estimatedCostAnthropic,
+      openai:    result.estimatedCostOpenAI,
+      total:     result.estimatedCostTotal,
+    },
+  });
 }

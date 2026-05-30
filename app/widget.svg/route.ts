@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
   const theme  = (sp.get('theme')  ?? process.env.DEFAULT_THEME         ?? 'dark')   as Theme;
   const color  = (sp.get('color')  ?? process.env.DEFAULT_COLOR_SCHEME  ?? 'purple') as ColorScheme;
 
-  const data = await aggregateUsage(365);
-  const svg  = generateSVG(data, theme, color, source);
+  const result = await aggregateUsage(365);
+  const svg    = generateSVG(result.days, theme, color, source, result.estimatedCostTotal);
 
   return new NextResponse(svg, {
     headers: {

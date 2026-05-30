@@ -3,6 +3,13 @@ import { fetchOpenAIUsage } from './openai';
 import { getManualTokensByDate } from './manual';
 import type { UsageDay } from './types';
 
+export interface AggregateResult {
+  days: UsageDay[];
+  estimatedCostAnthropic: number;
+  estimatedCostOpenAI: number;
+  estimatedCostTotal: number;
+}
+
 export function getDateRange(days = 365): { startDate: string; endDate: string } {
   const end = new Date();
   const start = new Date();
@@ -24,7 +31,7 @@ function getAllDates(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-export async function aggregateUsage(days = 365): Promise<UsageDay[]> {
+export async function aggregateUsage(days = 365): Promise<AggregateResult> {
   const { startDate, endDate } = getDateRange(days);
 
   const [anthropicRaw, openaiRaw, manual] = await Promise.all([
@@ -33,14 +40,23 @@ export async function aggregateUsage(days = 365): Promise<UsageDay[]> {
     Promise.resolve(getManualTokensByDate()),
   ]);
 
-  const anthropic = anthropicRaw ?? {};
-  const openai    = openaiRaw    ?? {};
+  const anthropic = anthropicRaw?.byDate ?? {};
+  const openai    = openaiRaw?.byDate    ?? {};
+  const estimatedCostAnthropic = anthropicRaw?.estimatedCost ?? 0;
+  const estimatedCostOpenAI    = openaiRaw?.estimatedCost    ?? 0;
 
-  return getAllDates(startDate, endDate).map(date => ({
+  const days_ = getAllDates(startDate, endDate).map(date => ({
     date,
     anthropic: anthropic[date] ?? 0,
     openai:    openai[date]    ?? 0,
     manual:    manual[date]    ?? 0,
     total: (anthropic[date] ?? 0) + (openai[date] ?? 0) + (manual[date] ?? 0),
   }));
+
+  return {
+    days: days_,
+    estimatedCostAnthropic,
+    estimatedCostOpenAI,
+    estimatedCostTotal: estimatedCostAnthropic + estimatedCostOpenAI,
+  };
 }

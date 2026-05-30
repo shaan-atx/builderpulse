@@ -1,6 +1,8 @@
 import { cached } from './cache';
+import { calcOpenAICost } from './pricing';
 
 interface UsageResult {
+  model?: string;
   input_tokens?: number;
   output_tokens?: number;
   input_cached_tokens?: number;
@@ -18,18 +20,24 @@ interface UsageResponse {
   next_page?: string | null;
 }
 
+export interface OpenAIUsageData {
+  byDate: Record<string, number>;
+  estimatedCost: number;
+}
+
 async function _fetchOpenAIUsage(
   startDate: string,
   endDate: string,
-): Promise<Record<string, number>> {
+): Promise<OpenAIUsageData | null> {
   const key = process.env.OPENAI_API_KEY;
-  if (!key) return {};
+  if (!key) return { byDate: {}, estimatedCost: 0 };
 
   const headers = { Authorization: `Bearer ${key}` };
   const startTs = Math.floor(new Date(startDate).getTime() / 1000);
   const endTs   = Math.floor(new Date(endDate + 'T23:59:59Z').getTime() / 1000);
 
-  const result: Record<string, number> = {};
+  const byDate: Record<string, number> = {};
+  let estimatedCost = 0;
   let nextPage: string | undefined;
 
   do {
@@ -56,22 +64,27 @@ async function _fetchOpenAIUsage(
 
     for (const bucket of json.data ?? []) {
       const date = new Date(bucket.start_time * 1000).toISOString().split('T')[0];
-      const tokens = (bucket.results ?? []).reduce((sum, r) => {
-        return sum + (r.input_tokens ?? 0) + (r.output_tokens ?? 0);
-      }, 0);
-      result[date] = (result[date] ?? 0) + tokens;
+      for (const r of bucket.results ?? []) {
+        const input  = r.input_tokens ?? 0;
+        const cached = r.input_cached_tokens ?? 0;
+        const output = r.output_tokens ?? 0;
+        const tokens = input + output;
+
+        byDate[date] = (byDate[date] ?? 0) + tokens;
+        estimatedCost += calcOpenAICost(r.model ?? '', input, cached, output);
+      }
     }
 
     nextPage = json.has_more && json.next_page ? json.next_page : undefined;
   } while (nextPage);
 
-  return result;
+  return { byDate, estimatedCost };
 }
 
 export function fetchOpenAIUsage(
   startDate: string,
   endDate: string,
-): Promise<Record<string, number>> {
+): Promise<OpenAIUsageData | null> {
   return cached(`openai:${startDate}:${endDate}`, 60 * 60 * 1000, () =>
     _fetchOpenAIUsage(startDate, endDate),
   );
