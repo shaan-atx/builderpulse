@@ -1,3 +1,5 @@
+import { cached } from './cache';
+
 interface UsageResult {
   input_tokens?: number;
   output_tokens?: number;
@@ -16,7 +18,7 @@ interface UsageResponse {
   next_page?: string | null;
 }
 
-export async function fetchOpenAIUsage(
+async function _fetchOpenAIUsage(
   startDate: string,
   endDate: string,
 ): Promise<Record<string, number>> {
@@ -39,7 +41,7 @@ export async function fetchOpenAIUsage(
 
     let res: Response;
     try {
-      res = await fetch(url.toString(), { headers });
+      res = await fetch(url.toString(), { headers, cache: 'no-store' });
     } catch {
       break;
     }
@@ -64,4 +66,13 @@ export async function fetchOpenAIUsage(
   } while (nextPage);
 
   return result;
+}
+
+export function fetchOpenAIUsage(
+  startDate: string,
+  endDate: string,
+): Promise<Record<string, number>> {
+  return cached(`openai:${startDate}:${endDate}`, 60 * 60 * 1000, () =>
+    _fetchOpenAIUsage(startDate, endDate),
+  );
 }

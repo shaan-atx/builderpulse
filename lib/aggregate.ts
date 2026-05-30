@@ -27,17 +27,20 @@ function getAllDates(startDate: string, endDate: string): string[] {
 export async function aggregateUsage(days = 365): Promise<UsageDay[]> {
   const { startDate, endDate } = getDateRange(days);
 
-  const [anthropic, openai, manual] = await Promise.all([
+  const [anthropicRaw, openaiRaw, manual] = await Promise.all([
     fetchAnthropicUsage(startDate, endDate),
     fetchOpenAIUsage(startDate, endDate),
     Promise.resolve(getManualTokensByDate()),
   ]);
 
+  const anthropic = anthropicRaw ?? {};
+  const openai    = openaiRaw    ?? {};
+
   return getAllDates(startDate, endDate).map(date => ({
     date,
     anthropic: anthropic[date] ?? 0,
-    openai: openai[date] ?? 0,
-    manual: manual[date] ?? 0,
+    openai:    openai[date]    ?? 0,
+    manual:    manual[date]    ?? 0,
     total: (anthropic[date] ?? 0) + (openai[date] ?? 0) + (manual[date] ?? 0),
   }));
 }

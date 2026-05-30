@@ -1,3 +1,5 @@
+import { cached } from './cache';
+
 interface UsageResult {
   input_tokens?: number;
   output_tokens?: number;
@@ -18,10 +20,10 @@ interface UsageResponse {
   next_page?: string | null;
 }
 
-export async function fetchAnthropicUsage(
+async function _fetchAnthropicUsage(
   startDate: string,
   endDate: string,
-): Promise<Record<string, number>> {
+): Promise<Record<string, number> | null> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return {};
 
@@ -42,13 +44,14 @@ export async function fetchAnthropicUsage(
 
     let res: Response;
     try {
-      res = await fetch(url.toString(), { headers, next: { revalidate: 3600 } });
+      res = await fetch(url.toString(), { headers, cache: 'no-store' });
     } catch {
       break;
     }
 
     if (!res.ok) {
       if (res.status === 401) console.warn('[anthropic] 401 — key needs to be an Admin API key (sk-ant-admin-...)');
+      else if (res.status === 429) { console.warn('[anthropic] 429 rate limited'); return null; }
       else console.error('[anthropic]', res.status, await res.text());
       break;
     }
@@ -72,4 +75,13 @@ export async function fetchAnthropicUsage(
   } while (nextPage);
 
   return result;
+}
+
+export function fetchAnthropicUsage(
+  startDate: string,
+  endDate: string,
+): Promise<Record<string, number>> {
+  return cached(`anthropic:${startDate}:${endDate}`, 60 * 60 * 1000, () =>
+    _fetchAnthropicUsage(startDate, endDate),
+  );
 }
