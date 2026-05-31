@@ -1,4 +1,4 @@
-import { cached } from './cache';
+import { cached, setBackoff } from './cache';
 import { calcAnthropicCost } from './pricing';
 
 interface UsageResult {
@@ -66,7 +66,7 @@ async function _fetchAnthropicUsage(
 
     if (!res.ok) {
       if (res.status === 401) console.warn('[anthropic] 401 — key needs to be an Admin API key (sk-ant-admin-...)');
-      else if (res.status === 429) { console.warn('[anthropic] 429 rate limited'); return null; }
+      else if (res.status === 429) { setBackoff(`anthropic:${startDate}:${endDate}`); return null; }
       else console.error('[anthropic]', res.status, await res.text());
       break;
     }
@@ -100,7 +100,7 @@ export function fetchAnthropicUsage(
   startDate: string,
   endDate: string,
 ): Promise<AnthropicUsageData | null> {
-  return cached(`anthropic:${startDate}:${endDate}`, 60 * 60 * 1000, () =>
+  return cached(`anthropic:${startDate}:${endDate}`, 24 * 60 * 60 * 1000, () =>
     _fetchAnthropicUsage(startDate, endDate),
   );
 }
