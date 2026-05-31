@@ -67,6 +67,7 @@ export function generateSVG(
   color: ColorScheme = 'purple',
   source: Source = 'all',
   estimatedCost = 0,
+  currentStreak = 0,
 ): string {
   const P = PALETTE[theme];
 
@@ -196,8 +197,12 @@ export function generateSVG(
     ? buildAllLegend(P, ly, theme)
     : buildSingleLegend(singlePalette, ly, P.text);
 
-  const costSVG = estimatedCost > 0
-    ? `<text x="${W - PAD_RIGHT + 4}" y="${MONTH_TOP + DAYS * STEP + 10 + CELL - 1}" font-size="9" fill="${P.text}" font-family="system-ui,sans-serif" text-anchor="start">~${fmtCost(estimatedCost)}</text>`
+  const metaY = MONTH_TOP + DAYS * STEP + 10 + CELL - 1;
+  const metaParts: string[] = [];
+  if (currentStreak > 0)  metaParts.push(`🔥 ${currentStreak}`);
+  if (estimatedCost > 0)  metaParts.push(`~${fmtCost(estimatedCost)}`);
+  const metaSVG = metaParts.length > 0
+    ? `<text x="${W - PAD_RIGHT + 4}" y="${metaY}" font-size="9" fill="${P.text}" font-family="system-ui,sans-serif" text-anchor="start">${metaParts.join('  ')}</text>`
     : '';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
@@ -207,7 +212,7 @@ export function generateSVG(
   ${monthSVG}
   ${cells.join('\n  ')}
   ${legendItems}
-  ${costSVG}
+  ${metaSVG}
 </svg>`;
 }
 

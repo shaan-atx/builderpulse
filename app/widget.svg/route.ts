@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const color  = (sp.get('color')  ?? process.env.DEFAULT_COLOR_SCHEME  ?? 'purple') as ColorScheme;
 
   const result = await aggregateUsage(365);
-  const svg    = generateSVG(result.days, theme, color, source, result.estimatedCostTotal);
+  const svg    = generateSVG(result.days, theme, color, source, result.estimatedCostTotal, result.currentStreak);
 
   return new NextResponse(svg, {
     headers: {
