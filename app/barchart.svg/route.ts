@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
   const theme = (sp.get('theme') ?? process.env.DEFAULT_THEME ?? 'dark') as Theme;
   const days  = Math.min(parseInt(sp.get('days') ?? '30', 10), 90);
 
-  const result = await aggregateUsage(days);
+  // Always fetch 365 days so this shares a cache entry with the heatmap route
+  const result = await aggregateUsage(365);
   const svg    = generateBarChart(result.days, theme, days, result.estimatedCostTotal);
 
   return new NextResponse(svg, {

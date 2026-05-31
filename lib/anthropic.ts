@@ -1,4 +1,4 @@
-import { cached, setBackoff } from './cache';
+import { unstable_cache } from 'next/cache';
 import { calcAnthropicCost } from './pricing';
 
 interface UsageResult {
@@ -36,7 +36,7 @@ export interface AnthropicUsageData {
 async function _fetchAnthropicUsage(
   startDate: string,
   endDate: string,
-): Promise<AnthropicUsageData | null> {
+): Promise<AnthropicUsageData> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return { byDate: {}, estimatedCost: 0, byModel: {} };
 
@@ -66,7 +66,7 @@ async function _fetchAnthropicUsage(
 
     if (!res.ok) {
       if (res.status === 401) console.warn('[anthropic] 401 — key needs to be an Admin API key (sk-ant-admin-...)');
-      else if (res.status === 429) { setBackoff(`anthropic:${startDate}:${endDate}`); return null; }
+      else if (res.status === 429) throw new Error('anthropic-rate-limited'); // NOT cached by unstable_cache
       else console.error('[anthropic]', res.status, await res.text());
       break;
     }
@@ -81,8 +81,8 @@ async function _fetchAnthropicUsage(
         const creation  = r.cache_creation_input_tokens ?? 0;
         const output    = r.output_tokens ?? 0;
         const tokens    = uncached + cached + creation + output;
+        const cost      = calcAnthropicCost(r.model ?? '', uncached, cached, creation, output);
 
-        const cost = calcAnthropicCost(r.model ?? '', uncached, cached, creation, output);
         byDate[date] = (byDate[date] ?? 0) + tokens;
         estimatedCost += cost;
         const model = r.model ?? 'unknown';
@@ -96,11 +96,24 @@ async function _fetchAnthropicUsage(
   return { byDate, estimatedCost, byModel };
 }
 
-export function fetchAnthropicUsage(
+// unstable_cache: uses Vercel's shared distributed cache — persists across serverless invocations.
+// Throws are NOT cached, so rate limits (429) force a retry on the next request.
+const _cachedFetch = unstable_cache(
+  _fetchAnthropicUsage,
+  ['anthropic-usage'],
+  { revalidate: 86400 }, // 24 hours
+);
+
+export async function fetchAnthropicUsage(
   startDate: string,
   endDate: string,
 ): Promise<AnthropicUsageData | null> {
-  return cached(`anthropic:${startDate}:${endDate}`, 24 * 60 * 60 * 1000, () =>
-    _fetchAnthropicUsage(startDate, endDate),
-  );
+  try {
+    return await _cachedFetch(startDate, endDate);
+  } catch (e) {
+    if (e instanceof Error && e.message === 'anthropic-rate-limited') {
+      console.warn('[anthropic] 429 rate limited — will retry next request');
+    }
+    return null;
+  }
 }

@@ -1,4 +1,4 @@
-import { cached } from './cache';
+import { unstable_cache } from 'next/cache';
 import { calcOpenAICost } from './pricing';
 
 interface UsageResult {
@@ -34,7 +34,7 @@ export interface OpenAIUsageData {
 async function _fetchOpenAIUsage(
   startDate: string,
   endDate: string,
-): Promise<OpenAIUsageData | null> {
+): Promise<OpenAIUsageData> {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return { byDate: {}, estimatedCost: 0, byModel: {} };
 
@@ -76,8 +76,8 @@ async function _fetchOpenAIUsage(
         const cached = r.input_cached_tokens ?? 0;
         const output = r.output_tokens ?? 0;
         const tokens = input + output;
+        const cost   = calcOpenAICost(r.model ?? '', input, cached, output);
 
-        const cost = calcOpenAICost(r.model ?? '', input, cached, output);
         byDate[date] = (byDate[date] ?? 0) + tokens;
         estimatedCost += cost;
         const model = r.model ?? 'unknown';
@@ -91,11 +91,19 @@ async function _fetchOpenAIUsage(
   return { byDate, estimatedCost, byModel };
 }
 
-export function fetchOpenAIUsage(
+const _cachedFetch = unstable_cache(
+  _fetchOpenAIUsage,
+  ['openai-usage'],
+  { revalidate: 86400 },
+);
+
+export async function fetchOpenAIUsage(
   startDate: string,
   endDate: string,
 ): Promise<OpenAIUsageData | null> {
-  return cached(`openai:${startDate}:${endDate}`, 60 * 60 * 1000, () =>
-    _fetchOpenAIUsage(startDate, endDate),
-  );
+  try {
+    return await _cachedFetch(startDate, endDate);
+  } catch {
+    return null;
+  }
 }

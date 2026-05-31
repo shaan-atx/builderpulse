@@ -30,7 +30,8 @@ export default async function PublicProfile() {
       {/* Header */}
       <div className="space-y-1">
         <h1 className="text-3xl font-bold text-white">BuilderPulse</h1>
-        <p className="text-gray-400">AI API activity — last 52 weeks</p>
+        <p className="text-gray-300 text-sm">Your AI API activity graph — like GitHub contributions, but for tokens.</p>
+        <p className="text-gray-500 text-xs">Embed it in your README to show the world you build with AI every day.</p>
       </div>
 
       {/* Heatmap */}
