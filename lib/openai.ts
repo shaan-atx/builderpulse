@@ -36,7 +36,7 @@ async function _fetchOpenAIUsage(
   endDate: string,
 ): Promise<OpenAIUsageData | null> {
   const key = process.env.OPENAI_API_KEY;
-  if (!key) return { byDate: {}, estimatedCost: 0 };
+  if (!key) return { byDate: {}, estimatedCost: 0, byModel: {} };
 
   const headers = { Authorization: `Bearer ${key}` };
   const startTs = Math.floor(new Date(startDate).getTime() / 1000);

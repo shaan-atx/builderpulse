@@ -38,7 +38,7 @@ async function _fetchAnthropicUsage(
   endDate: string,
 ): Promise<AnthropicUsageData | null> {
   const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return { byDate: {}, estimatedCost: 0 };
+  if (!key) return { byDate: {}, estimatedCost: 0, byModel: {} };
 
   const headers = {
     'x-api-key': key,
