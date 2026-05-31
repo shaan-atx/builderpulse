@@ -1,5 +1,6 @@
 import { unstable_cache } from 'next/cache';
 import { calcOpenAICost } from './pricing';
+import { kvGet, kvSet } from './kv';
 
 interface UsageResult {
   model?: string;
@@ -31,17 +32,16 @@ export interface OpenAIUsageData {
   byModel: Record<string, ModelUsage>;
 }
 
-async function _fetchOpenAIUsage(
+async function _fetchFromAPI(
   startDate: string,
   endDate: string,
-): Promise<OpenAIUsageData> {
+): Promise<OpenAIUsageData | null> {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return { byDate: {}, estimatedCost: 0, byModel: {} };
 
   const headers = { Authorization: `Bearer ${key}` };
   const startTs = Math.floor(new Date(startDate).getTime() / 1000);
   const endTs   = Math.floor(new Date(endDate + 'T23:59:59Z').getTime() / 1000);
-
   const byDate: Record<string, number> = {};
   const byModel: Record<string, ModelUsage> = {};
   let estimatedCost = 0;
@@ -55,20 +55,16 @@ async function _fetchOpenAIUsage(
     if (nextPage) url.searchParams.set('page', nextPage);
 
     let res: Response;
-    try {
-      res = await fetch(url.toString(), { headers, cache: 'no-store' });
-    } catch {
-      break;
-    }
+    try { res = await fetch(url.toString(), { headers, cache: 'no-store' }); }
+    catch { break; }
 
     if (!res.ok) {
-      if (res.status === 403) console.warn('[openai] 403 — key needs the api.usage.read scope');
+      if (res.status === 403) console.warn('[openai] 403 — key needs api.usage.read scope');
       else console.error('[openai]', res.status, await res.text());
       break;
     }
 
     const json = await res.json() as UsageResponse;
-
     for (const bucket of json.data ?? []) {
       const date = new Date(bucket.start_time * 1000).toISOString().split('T')[0];
       for (const r of bucket.results ?? []) {
@@ -77,22 +73,24 @@ async function _fetchOpenAIUsage(
         const output = r.output_tokens ?? 0;
         const tokens = input + output;
         const cost   = calcOpenAICost(r.model ?? '', input, cached, output);
-
         byDate[date] = (byDate[date] ?? 0) + tokens;
         estimatedCost += cost;
         const model = r.model ?? 'unknown';
         byModel[model] = { tokens: (byModel[model]?.tokens ?? 0) + tokens, cost: (byModel[model]?.cost ?? 0) + cost };
       }
     }
-
     nextPage = json.has_more && json.next_page ? json.next_page : undefined;
   } while (nextPage);
 
   return { byDate, estimatedCost, byModel };
 }
 
-const _cachedFetch = unstable_cache(
-  _fetchOpenAIUsage,
+const _unstableCached = unstable_cache(
+  async (startDate: string, endDate: string): Promise<OpenAIUsageData> => {
+    const result = await _fetchFromAPI(startDate, endDate);
+    if (result === null) throw new Error('failed');
+    return result;
+  },
   ['openai-usage'],
   { revalidate: 86400 },
 );
@@ -101,8 +99,15 @@ export async function fetchOpenAIUsage(
   startDate: string,
   endDate: string,
 ): Promise<OpenAIUsageData | null> {
+  const kvKey = `openai:${startDate}:${endDate}`;
+
+  const kvHit = await kvGet<OpenAIUsageData>(kvKey);
+  if (kvHit) return kvHit;
+
   try {
-    return await _cachedFetch(startDate, endDate);
+    const result = await _unstableCached(startDate, endDate);
+    await kvSet(kvKey, result, 86400);
+    return result;
   } catch {
     return null;
   }
