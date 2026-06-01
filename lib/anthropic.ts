@@ -103,19 +103,25 @@ export async function fetchAnthropicUsage(
   startDate: string,
   endDate: string,
 ): Promise<AnthropicUsageData | null> {
-  // Stable key — doesn't change daily so the TTL controls refresh, not the date
-  const kvKey = `anthropic:usage:365d`;
-
-  // 1. KV cache — survives across deployments and cold starts
-  const kvHit = await kvGet<AnthropicUsageData>(kvKey);
+  // 1. KV data cache — survives across deployments and cold starts
+  const kvHit = await kvGet<AnthropicUsageData>('anthropic:usage:365d');
   if (kvHit) return kvHit;
 
-  // 2. unstable_cache — in-process fallback when KV isn't configured
+  // 2. KV backoff — if rate limited recently, don't hammer the API on every request
+  const backoffUntil = await kvGet<number>('anthropic:backoff');
+  if (backoffUntil && backoffUntil > Date.now()) {
+    console.warn(`[anthropic] in backoff until ${new Date(backoffUntil).toLocaleTimeString()}`);
+    return null;
+  }
+
+  // 3. Fetch from API
   try {
     const result = await _unstableCached(startDate, endDate);
-    await kvSet(kvKey, result, 86400); // also store in KV for next deployment
+    await kvSet('anthropic:usage:365d', result, 86400);
     return result;
   } catch {
-    return null; // rate limited
+    // Rate limited — back off for 30 min so we don't keep hammering the API
+    await kvSet('anthropic:backoff', Date.now() + 30 * 60 * 1000, 1800);
+    return null;
   }
 }
