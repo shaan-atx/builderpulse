@@ -103,7 +103,8 @@ export async function fetchAnthropicUsage(
   startDate: string,
   endDate: string,
 ): Promise<AnthropicUsageData | null> {
-  const kvKey = `anthropic:${startDate}:${endDate}`;
+  // Stable key — doesn't change daily so the TTL controls refresh, not the date
+  const kvKey = `anthropic:usage:365d`;
 
   // 1. KV cache — survives across deployments and cold starts
   const kvHit = await kvGet<AnthropicUsageData>(kvKey);

@@ -99,7 +99,7 @@ export async function fetchOpenAIUsage(
   startDate: string,
   endDate: string,
 ): Promise<OpenAIUsageData | null> {
-  const kvKey = `openai:${startDate}:${endDate}`;
+  const kvKey = `openai:usage:365d`;
 
   const kvHit = await kvGet<OpenAIUsageData>(kvKey);
   if (kvHit) return kvHit;
